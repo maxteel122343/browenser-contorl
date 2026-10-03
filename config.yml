@@ -1,0 +1,23 @@
+# ==============================================================
+# CONFIGURAÇÃO DE ACESSO AO IMVU
+# ==============================================================
+# Preencha com o seu nome de usuário (Avatar Name ou E-mail) e senha.
+# Esses dados serão carregados automaticamente pelo app.py e bot.py.
+# ==============================================================
+
+imvu:
+  username: "SEU_USUARIO_OU_EMAIL"
+  password: "SUA_SENHA_AQUI"
+  default_room_url: "https://www.imvu.com/next/chat/room-12345-67890"
+
+automation:
+  # Tempo limite em segundos para o WebDriverWait aguardar elementos da DOM
+  timeout: 25
+  # Manter a janela do Google Chrome aberta mesmo após o término da automação
+  keep_browser_open: true
+  # Executar em modo invisível (True) ou abrindo a janela visível do Chrome (False)
+  headless: false
+  # User-Agent personalizado (opcional - deixe vazio para usar o padrão do Chrome)
+  user_agent: ""
+  # Aguardar carregamento adicional de assets 3D após entrar na sala (em segundos)
+  post_join_delay: 3

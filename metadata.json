@@ -1,0 +1,6 @@
+{
+  "name": "IMVU Automation Suite",
+  "description": "Automação de navegador completa para IMVU com Selenium: login automático, entrada em salas 3D IMVU Next, interface gráfica CustomTkinter e CLI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
