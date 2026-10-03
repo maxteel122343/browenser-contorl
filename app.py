@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
 ==============================================================
-IMVU AUTOMATION SUITE - INTERFACE GRÁFICA (CustomTkinter / Tkinter)
+IMVU AUTOMATION SUITE - INTERFACE GRAFICA (CustomTkinter / Tkinter)
 ==============================================================
-Aplicação desktop com interface gráfica para automação de navegador
+Aplicacao desktop com interface grafica para automacao de navegador
 no IMVU utilizando Selenium WebDriver.
 
 Recursos:
-- Carregamento e salvamento automático do arquivo `config.yml`.
-- Execução assíncrona em segundo plano (multi-thread) sem congelar a interface.
-- Caixa de log em tempo real com níveis [INFO], [SUCCESS], [WARNING], [ERROR].
-- Botões de início rápido e fechamento sob demanda da janela do Chrome.
-- Suporte a fallback automático caso CustomTkinter ainda não esteja instalado.
+- Forca UTF-8 no stdout/stderr no Windows.
+- Logs estritamente ASCII ([INFO], [OK], [AVISO], [ERRO]) sem emojis.
+- Carregamento e salvamento automatico do arquivo `config.yml`.
+- Execucao assincrona em segundo plano (multi-thread) sem congelar a interface.
+- Botoes de inicio rapido e fechamento sob demanda da janela do Chrome.
+- Suporte a fallback automatico caso CustomTkinter nao esteja instalado.
 ==============================================================
 """
 
@@ -22,22 +23,30 @@ import queue
 from datetime import datetime
 from typing import Optional
 
+# Forcar UTF-8 no stdout/stderr no Windows (evita UnicodeEncodeError em consoles cp1252/cp850)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+os.environ["PYTHONIOENCODING"] = "utf-8"
+os.environ["PYTHONUTF8"] = "1"
+
 try:
     import yaml
 except ImportError:
-    print("\n❌ [ERRO] O módulo 'pyyaml' não está instalado.")
-    print("👉 Por favor, execute no seu terminal: pip install -r requirements.txt\n")
+    print("\n[ERRO] O modulo 'pyyaml' nao esta instalado.")
+    print("Execute no seu terminal: pip install -r requirements.txt\n")
     sys.exit(1)
 
-# Importação da engine de automação
+# Importacao da engine de automacao
 try:
     from imvu_automator import IMVUAutomator
 except ImportError as e:
-    print(f"\n❌ [ERRO] Dependência ausente ao importar imvu_automator: {e}")
-    print("👉 Por favor, execute no seu terminal: pip install -r requirements.txt\n")
+    print(f"\n[ERRO] Dependencia ausente ao importar imvu_automator: {e}")
+    print("Execute no seu terminal: pip install -r requirements.txt\n")
     sys.exit(1)
 
-# Tentativa de carregar CustomTkinter com fallback para Tkinter padrão
+# Tentativa de carregar CustomTkinter com fallback para Tkinter padrao
 try:
     import customtkinter as ctk
     USE_CUSTOM_TK = True
@@ -51,7 +60,7 @@ CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.y
 
 
 def load_config() -> dict:
-    """Carrega as configurações do config.yml ou cria valores padrão."""
+    """Carrega as configuracoes do config.yml ou cria valores padrao."""
     default_config = {
         "imvu": {
             "username": "",
@@ -75,13 +84,13 @@ def load_config() -> dict:
                 if "automation" in data:
                     default_config["automation"].update(data.get("automation", {}))
         except Exception as e:
-            print(f"Aviso: Não foi possível ler {CONFIG_FILE}: {e}")
+            print(f"[AVISO] Nao foi possivel ler {CONFIG_FILE}: {e}")
 
     return default_config
 
 
 def save_config(username: str, password: str, room_url: str, headless: bool = False):
-    """Salva as configurações atualizadas no config.yml."""
+    """Salva as configuracoes atualizadas no config.yml."""
     config = load_config()
     config["imvu"]["username"] = username
     config["imvu"]["password"] = password
@@ -92,7 +101,7 @@ def save_config(username: str, password: str, room_url: str, headless: bool = Fa
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
     except Exception as e:
-        print(f"Erro ao salvar config.yml: {e}")
+        print(f"[ERRO] Falha ao salvar config.yml: {e}")
 
 
 class IMVUGuiApp:
@@ -117,15 +126,14 @@ class IMVUGuiApp:
         self._start_log_consumer()
 
     def _build_ui(self):
-        """Monta os componentes visuais da aplicação."""
+        """Monta os componentes visuais da aplicacao."""
         if USE_CUSTOM_TK:
             self._build_custom_ui()
         else:
             self._build_standard_ui()
 
     def _build_custom_ui(self):
-        """Montagem usando CustomTkinter moderno e escuro."""
-        # Top Header
+        """Montagem usando CustomTkinter."""
         header_frame = ctk.CTkFrame(self.root, corner_radius=10, fg_color="#18181b")
         header_frame.pack(fill="x", padx=16, pady=(16, 10))
 
@@ -139,17 +147,15 @@ class IMVUGuiApp:
 
         subtitle = ctk.CTkLabel(
             header_frame,
-            text="Automação fim-a-fim de login e entrada imediata em salas 3D do IMVU Next",
+            text="Automacao de login e entrada imediata em salas 3D do IMVU Next",
             font=ctk.CTkFont(size=12),
             text_color="#94a3b8"
         )
         subtitle.pack(anchor="w", padx=16, pady=(0, 12))
 
-        # Form Frame
         form_frame = ctk.CTkFrame(self.root, corner_radius=10, fg_color="#1e1e24")
         form_frame.pack(fill="x", padx=16, pady=6)
 
-        # Room URL
         lbl_room = ctk.CTkLabel(form_frame, text="URL da Sala IMVU (Next Chat):", font=ctk.CTkFont(weight="bold"))
         lbl_room.grid(row=0, column=0, sticky="w", padx=16, pady=(12, 4))
         self.entry_room = ctk.CTkEntry(
@@ -160,8 +166,7 @@ class IMVUGuiApp:
         self.entry_room.grid(row=0, column=1, columnspan=2, sticky="ew", padx=16, pady=(12, 4))
         self.entry_room.insert(0, self.config["imvu"].get("default_room_url", ""))
 
-        # Credentials row
-        lbl_user = ctk.CTkLabel(form_frame, text="Usuário / E-mail:", font=ctk.CTkFont(weight="bold"))
+        lbl_user = ctk.CTkLabel(form_frame, text="Usuario / E-mail:", font=ctk.CTkFont(weight="bold"))
         lbl_user.grid(row=1, column=0, sticky="w", padx=16, pady=6)
         self.entry_user = ctk.CTkEntry(form_frame, placeholder_text="Seu Avatar Name ou E-mail", height=36)
         self.entry_user.grid(row=1, column=1, columnspan=2, sticky="ew", padx=16, pady=6)
@@ -175,21 +180,20 @@ class IMVUGuiApp:
 
         form_frame.grid_columnconfigure(1, weight=1)
 
-        # Options row
         opt_frame = ctk.CTkFrame(self.root, fg_color="transparent")
         opt_frame.pack(fill="x", padx=16, pady=4)
 
         self.var_headless = ctk.BooleanVar(value=self.config["automation"].get("headless", False))
         chk_headless = ctk.CTkCheckBox(
             opt_frame,
-            text="Modo Headless (Invisível)",
+            text="Modo Headless (Invisivel)",
             variable=self.var_headless
         )
         chk_headless.pack(side="left", padx=4)
 
         btn_save = ctk.CTkButton(
             opt_frame,
-            text="💾 Salvar Config",
+            text="Salvar Config",
             width=120,
             fg_color="#334155",
             hover_color="#475569",
@@ -197,13 +201,12 @@ class IMVUGuiApp:
         )
         btn_save.pack(side="right", padx=4)
 
-        # Big Action Buttons
         btn_frame = ctk.CTkFrame(self.root, fg_color="transparent")
         btn_frame.pack(fill="x", padx=16, pady=10)
 
         self.btn_start = ctk.CTkButton(
             btn_frame,
-            text="🚀 INICIAR AUTOMAÇÃO & ABRIR NAVEGADOR",
+            text="INICIAR AUTOMACAO & ABRIR NAVEGADOR",
             height=48,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color="#2563eb",
@@ -214,7 +217,7 @@ class IMVUGuiApp:
 
         self.btn_stop = ctk.CTkButton(
             btn_frame,
-            text="🛑 PARAR / FECHAR NAVEGADOR",
+            text="PARAR / FECHAR NAVEGADOR",
             height=48,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color="#dc2626",
@@ -224,10 +227,9 @@ class IMVUGuiApp:
         )
         self.btn_stop.pack(side="right", fill="x", expand=True, padx=(8, 0))
 
-        # Log Console Box
         log_header = ctk.CTkLabel(
             self.root,
-            text="Terminal de Status e Logs da Automação:",
+            text="Terminal de Status e Logs da Automacao:",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#cbd5e1"
         )
@@ -243,14 +245,14 @@ class IMVUGuiApp:
         self.txt_logs.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
     def _build_standard_ui(self):
-        """Montagem de fallback usando Tkinter padrão."""
+        """Montagem de fallback usando Tkinter padrao."""
         import tkinter as tk
         top_frame = tk.Frame(self.root, bg="#1e293b", padx=12, pady=10)
         top_frame.pack(fill="x")
 
         tk.Label(
             top_frame,
-            text="IMVU Browser Automation (Modo Tkinter Padrão)",
+            text="IMVU Browser Automation (Modo Tkinter Padrao)",
             font=("Arial", 16, "bold"),
             bg="#1e293b",
             fg="#38bdf8"
@@ -264,7 +266,7 @@ class IMVUGuiApp:
         self.entry_room.grid(row=0, column=1, sticky="ew", pady=4)
         self.entry_room.insert(0, self.config["imvu"].get("default_room_url", ""))
 
-        tk.Label(form, text="Usuário:", font=("Arial", 10, "bold")).grid(row=1, column=0, sticky="w", pady=4)
+        tk.Label(form, text="Usuario:", font=("Arial", 10, "bold")).grid(row=1, column=0, sticky="w", pady=4)
         self.entry_user = tk.Entry(form, width=60)
         self.entry_user.grid(row=1, column=1, sticky="ew", pady=4)
         self.entry_user.insert(0, self.config["imvu"].get("username", ""))
@@ -281,7 +283,7 @@ class IMVUGuiApp:
 
         self.btn_start = tk.Button(
             btn_box,
-            text="INICIAR AUTOMAÇÃO & ABRIR NAVEGADOR",
+            text="INICIAR AUTOMACAO & ABRIR NAVEGADOR",
             bg="#0284c7",
             fg="white",
             font=("Arial", 11, "bold"),
@@ -315,22 +317,21 @@ class IMVUGuiApp:
             while not self.log_queue.empty():
                 msg, level = self.log_queue.get_nowait()
                 timestamp = datetime.now().strftime("%H:%M:%S")
-                icon = {
-                    "INFO": "ℹ️",
-                    "SUCCESS": "✅",
-                    "WARNING": "⚠️",
-                    "ERROR": "❌",
-                    "DEBUG": "🔍"
-                }.get(level, "•")
-
-                line = f"[{timestamp}] {icon} [{level}] {msg}\n"
-
-                if USE_CUSTOM_TK:
-                    self.txt_logs.insert("end", line)
-                    self.txt_logs.see("end")
+                lvl = level.upper()
+                if lvl in ("SUCCESS", "OK"):
+                    tag = "[OK]"
+                elif lvl in ("ERROR", "ERRO"):
+                    tag = "[ERRO]"
+                elif lvl in ("WARNING", "AVISO"):
+                    tag = "[AVISO]"
+                elif lvl == "DEBUG":
+                    tag = "[DEBUG]"
                 else:
-                    self.txt_logs.insert("end", line)
-                    self.txt_logs.see("end")
+                    tag = "[INFO]"
+
+                line = f"[{timestamp}] {tag} {msg}\n"
+                self.txt_logs.insert("end", line)
+                self.txt_logs.see("end")
         except Exception:
             pass
 
@@ -343,29 +344,28 @@ class IMVUGuiApp:
         room = self.entry_room.get().strip()
         headless = self.var_headless.get() if USE_CUSTOM_TK else False
         save_config(user, pwd, room, headless)
-        self.log("Configurações salvas em config.yml com sucesso.", "SUCCESS")
+        self.log("Configuracoes salvas em config.yml com sucesso.", "OK")
 
     def _on_start_automation(self):
-        """Dispara a automação em uma thread separada para não congelar o Tkinter."""
+        """Dispara a automacao em uma thread separada para nao congelar a interface."""
         user = self.entry_user.get().strip()
         pwd = self.entry_pass.get().strip()
         room = self.entry_room.get().strip()
 
         if not user or not pwd:
-            self.log("Atenção: Usuário e Senha são obrigatórios para realizar o login no IMVU.", "WARNING")
+            self.log("Usuario e Senha sao obrigatorios para o login no IMVU.", "AVISO")
             return
 
         if not room:
-            self.log("Atenção: A URL da sala não foi preenchida.", "WARNING")
+            self.log("A URL da sala nao foi preenchida.", "AVISO")
 
-        # Salva automaticamente antes de iniciar
         self._on_save_config()
 
         self.btn_start.configure(state="disabled")
         self.btn_stop.configure(state="normal")
         self.is_running = True
 
-        self.log("Iniciando processo de automação em segundo plano...", "INFO")
+        self.log("Iniciando processo de automacao em segundo plano...", "INFO")
 
         headless = self.var_headless.get() if USE_CUSTOM_TK else False
         timeout = int(self.config["automation"].get("timeout", 25))
@@ -380,27 +380,25 @@ class IMVUGuiApp:
             log_callback=self.log
         )
 
-        # Thread de execução em segundo plano
         thread = threading.Thread(target=self._run_automation_thread, daemon=True)
         thread.start()
 
     def _run_automation_thread(self):
-        """Método executado na thread de trabalho."""
+        """Metodo executado na thread de trabalho."""
         try:
             success = self.automator.run_full_pipeline()
             if success:
-                self.log("Operação finalizada com sucesso! Sessão ativa no Chrome.", "SUCCESS")
+                self.log("Operacao finalizada com sucesso! Sessao ativa no Chrome.", "OK")
             else:
-                self.log("A automação encontrou erros durante a execução.", "ERROR")
+                self.log("A automacao encontrou erros durante a execucao.", "ERRO")
         except Exception as e:
-            self.log(f"Exceção fatal na automação: {str(e)}", "ERROR")
+            self.log(f"Excecao fatal na automacao: {str(e)}", "ERRO")
         finally:
             self.root.after(0, self._reset_ui_state)
 
     def _reset_ui_state(self):
-        """Restaura o estado dos botões após término ou erro."""
+        """Restaura o estado dos botoes apos termino ou erro."""
         self.btn_start.configure(state="normal")
-        # Mantém btn_stop ativo se o driver ainda estiver aberto
         if self.automator and self.automator.driver:
             self.btn_stop.configure(state="normal")
         else:
@@ -410,14 +408,14 @@ class IMVUGuiApp:
     def _on_stop_browser(self):
         """Fecha a janela do Chrome imediatamente."""
         if self.automator:
-            self.log("Comando recebido: Encerrando navegador...", "WARNING")
+            self.log("Comando recebido: Encerrando navegador...", "AVISO")
             self.automator.close()
             self.btn_stop.configure(state="disabled")
             self.btn_start.configure(state="normal")
 
     def run(self):
-        """Inicia o loop principal da aplicação gráfica."""
-        self.log("Aplicativo iniciado. Pronto para automação.", "INFO")
+        """Inicia o loop principal da aplicacao grafica."""
+        self.log("Aplicativo iniciado. Pronto para automacao.", "INFO")
         self.root.mainloop()
 
 

@@ -11,21 +11,22 @@ export const PROJECT_FILES: ProjectFile[] = [
     name: "app.py",
     path: "app.py",
     language: "python",
-    description: "Interface Gráfica Desktop (CustomTkinter) com logs em tempo real e automação em thread separada",
+    description: "Interface Grafica Desktop (CustomTkinter) com logs em tempo real e automacao em thread separada",
     content: `#!/usr/bin/env python3
 """
 ==============================================================
-IMVU AUTOMATION SUITE - INTERFACE GRÁFICA (CustomTkinter / Tkinter)
+IMVU AUTOMATION SUITE - INTERFACE GRAFICA (CustomTkinter / Tkinter)
 ==============================================================
-Aplicação desktop com interface gráfica para automação de navegador
+Aplicacao desktop com interface grafica para automacao de navegador
 no IMVU utilizando Selenium WebDriver.
 
 Recursos:
-- Carregamento e salvamento automático do arquivo \`config.yml\`.
-- Execução assíncrona em segundo plano (multi-thread) sem congelar a interface.
-- Caixa de log em tempo real com níveis [INFO], [SUCCESS], [WARNING], [ERROR].
-- Botões de início rápido e fechamento sob demanda da janela do Chrome.
-- Suporte a fallback automático caso CustomTkinter ainda não esteja instalado.
+- Forca UTF-8 no stdout/stderr no Windows.
+- Logs estritamente ASCII ([INFO], [OK], [AVISO], [ERRO]) sem emojis.
+- Carregamento e salvamento automatico do arquivo \`config.yml\`.
+- Execucao assincrona em segundo plano (multi-thread) sem congelar a interface.
+- Botoes de inicio rapido e fechamento sob demanda da janela do Chrome.
+- Suporte a fallback automatico caso CustomTkinter nao esteja instalado.
 ==============================================================
 """
 
@@ -36,22 +37,30 @@ import queue
 from datetime import datetime
 from typing import Optional
 
+# Forcar UTF-8 no stdout/stderr no Windows (evita UnicodeEncodeError em consoles cp1252/cp850)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+os.environ["PYTHONIOENCODING"] = "utf-8"
+os.environ["PYTHONUTF8"] = "1"
+
 try:
     import yaml
 except ImportError:
-    print("\\n❌ [ERRO] O módulo 'pyyaml' não está instalado.")
-    print("👉 Por favor, execute no seu terminal: pip install -r requirements.txt\\n")
+    print("\\n[ERRO] O modulo 'pyyaml' nao esta instalado.")
+    print("Execute no seu terminal: pip install -r requirements.txt\\n")
     sys.exit(1)
 
-# Importação da engine de automação
+# Importacao da engine de automacao
 try:
     from imvu_automator import IMVUAutomator
 except ImportError as e:
-    print(f"\\n❌ [ERRO] Dependência ausente ao importar imvu_automator: {e}")
-    print("👉 Por favor, execute no seu terminal: pip install -r requirements.txt\\n")
+    print(f"\\n[ERRO] Dependencia ausente ao importar imvu_automator: {e}")
+    print("Execute no seu terminal: pip install -r requirements.txt\\n")
     sys.exit(1)
 
-# Tentativa de carregar CustomTkinter com fallback para Tkinter padrão
+# Tentativa de carregar CustomTkinter com fallback para Tkinter padrao
 try:
     import customtkinter as ctk
     USE_CUSTOM_TK = True
@@ -65,7 +74,7 @@ CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.y
 
 
 def load_config() -> dict:
-    """Carrega as configurações do config.yml ou cria valores padrão."""
+    """Carrega as configuracoes do config.yml ou cria valores padrao."""
     default_config = {
         "imvu": {
             "username": "",
@@ -89,13 +98,13 @@ def load_config() -> dict:
                 if "automation" in data:
                     default_config["automation"].update(data.get("automation", {}))
         except Exception as e:
-            print(f"Aviso: Não foi possível ler {CONFIG_FILE}: {e}")
+            print(f"[AVISO] Nao foi possivel ler {CONFIG_FILE}: {e}")
 
     return default_config
 
 
 def save_config(username: str, password: str, room_url: str, headless: bool = False):
-    """Salva as configurações atualizadas no config.yml."""
+    """Salva as configuracoes atualizadas no config.yml."""
     config = load_config()
     config["imvu"]["username"] = username
     config["imvu"]["password"] = password
@@ -106,7 +115,7 @@ def save_config(username: str, password: str, room_url: str, headless: bool = Fa
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
     except Exception as e:
-        print(f"Erro ao salvar config.yml: {e}")
+        print(f"[ERRO] Falha ao salvar config.yml: {e}")
 
 
 class IMVUGuiApp:
@@ -131,15 +140,14 @@ class IMVUGuiApp:
         self._start_log_consumer()
 
     def _build_ui(self):
-        """Monta os componentes visuais da aplicação."""
+        """Monta os componentes visuais da aplicacao."""
         if USE_CUSTOM_TK:
             self._build_custom_ui()
         else:
             self._build_standard_ui()
 
     def _build_custom_ui(self):
-        """Montagem usando CustomTkinter moderno e escuro."""
-        # Top Header
+        """Montagem usando CustomTkinter."""
         header_frame = ctk.CTkFrame(self.root, corner_radius=10, fg_color="#18181b")
         header_frame.pack(fill="x", padx=16, pady=(16, 10))
 
@@ -153,17 +161,15 @@ class IMVUGuiApp:
 
         subtitle = ctk.CTkLabel(
             header_frame,
-            text="Automação fim-a-fim de login e entrada imediata em salas 3D do IMVU Next",
+            text="Automacao de login e entrada imediata em salas 3D do IMVU Next",
             font=ctk.CTkFont(size=12),
             text_color="#94a3b8"
         )
         subtitle.pack(anchor="w", padx=16, pady=(0, 12))
 
-        # Form Frame
         form_frame = ctk.CTkFrame(self.root, corner_radius=10, fg_color="#1e1e24")
         form_frame.pack(fill="x", padx=16, pady=6)
 
-        # Room URL
         lbl_room = ctk.CTkLabel(form_frame, text="URL da Sala IMVU (Next Chat):", font=ctk.CTkFont(weight="bold"))
         lbl_room.grid(row=0, column=0, sticky="w", padx=16, pady=(12, 4))
         self.entry_room = ctk.CTkEntry(
@@ -174,8 +180,7 @@ class IMVUGuiApp:
         self.entry_room.grid(row=0, column=1, columnspan=2, sticky="ew", padx=16, pady=(12, 4))
         self.entry_room.insert(0, self.config["imvu"].get("default_room_url", ""))
 
-        # Credentials row
-        lbl_user = ctk.CTkLabel(form_frame, text="Usuário / E-mail:", font=ctk.CTkFont(weight="bold"))
+        lbl_user = ctk.CTkLabel(form_frame, text="Usuario / E-mail:", font=ctk.CTkFont(weight="bold"))
         lbl_user.grid(row=1, column=0, sticky="w", padx=16, pady=6)
         self.entry_user = ctk.CTkEntry(form_frame, placeholder_text="Seu Avatar Name ou E-mail", height=36)
         self.entry_user.grid(row=1, column=1, columnspan=2, sticky="ew", padx=16, pady=6)
@@ -189,21 +194,20 @@ class IMVUGuiApp:
 
         form_frame.grid_columnconfigure(1, weight=1)
 
-        # Options row
         opt_frame = ctk.CTkFrame(self.root, fg_color="transparent")
         opt_frame.pack(fill="x", padx=16, pady=4)
 
         self.var_headless = ctk.BooleanVar(value=self.config["automation"].get("headless", False))
         chk_headless = ctk.CTkCheckBox(
             opt_frame,
-            text="Modo Headless (Invisível)",
+            text="Modo Headless (Invisivel)",
             variable=self.var_headless
         )
         chk_headless.pack(side="left", padx=4)
 
         btn_save = ctk.CTkButton(
             opt_frame,
-            text="💾 Salvar Config",
+            text="Salvar Config",
             width=120,
             fg_color="#334155",
             hover_color="#475569",
@@ -211,13 +215,12 @@ class IMVUGuiApp:
         )
         btn_save.pack(side="right", padx=4)
 
-        # Big Action Buttons
         btn_frame = ctk.CTkFrame(self.root, fg_color="transparent")
         btn_frame.pack(fill="x", padx=16, pady=10)
 
         self.btn_start = ctk.CTkButton(
             btn_frame,
-            text="🚀 INICIAR AUTOMAÇÃO & ABRIR NAVEGADOR",
+            text="INICIAR AUTOMACAO & ABRIR NAVEGADOR",
             height=48,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color="#2563eb",
@@ -228,7 +231,7 @@ class IMVUGuiApp:
 
         self.btn_stop = ctk.CTkButton(
             btn_frame,
-            text="🛑 PARAR / FECHAR NAVEGADOR",
+            text="PARAR / FECHAR NAVEGADOR",
             height=48,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color="#dc2626",
@@ -238,10 +241,9 @@ class IMVUGuiApp:
         )
         self.btn_stop.pack(side="right", fill="x", expand=True, padx=(8, 0))
 
-        # Log Console Box
         log_header = ctk.CTkLabel(
             self.root,
-            text="Terminal de Status e Logs da Automação:",
+            text="Terminal de Status e Logs da Automacao:",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#cbd5e1"
         )
@@ -257,14 +259,14 @@ class IMVUGuiApp:
         self.txt_logs.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
     def _build_standard_ui(self):
-        """Montagem de fallback usando Tkinter padrão."""
+        """Montagem de fallback usando Tkinter padrao."""
         import tkinter as tk
         top_frame = tk.Frame(self.root, bg="#1e293b", padx=12, pady=10)
         top_frame.pack(fill="x")
 
         tk.Label(
             top_frame,
-            text="IMVU Browser Automation (Modo Tkinter Padrão)",
+            text="IMVU Browser Automation (Modo Tkinter Padrao)",
             font=("Arial", 16, "bold"),
             bg="#1e293b",
             fg="#38bdf8"
@@ -278,7 +280,7 @@ class IMVUGuiApp:
         self.entry_room.grid(row=0, column=1, sticky="ew", pady=4)
         self.entry_room.insert(0, self.config["imvu"].get("default_room_url", ""))
 
-        tk.Label(form, text="Usuário:", font=("Arial", 10, "bold")).grid(row=1, column=0, sticky="w", pady=4)
+        tk.Label(form, text="Usuario:", font=("Arial", 10, "bold")).grid(row=1, column=0, sticky="w", pady=4)
         self.entry_user = tk.Entry(form, width=60)
         self.entry_user.grid(row=1, column=1, sticky="ew", pady=4)
         self.entry_user.insert(0, self.config["imvu"].get("username", ""))
@@ -295,7 +297,7 @@ class IMVUGuiApp:
 
         self.btn_start = tk.Button(
             btn_box,
-            text="INICIAR AUTOMAÇÃO & ABRIR NAVEGADOR",
+            text="INICIAR AUTOMACAO & ABRIR NAVEGADOR",
             bg="#0284c7",
             fg="white",
             font=("Arial", 11, "bold"),
@@ -329,22 +331,21 @@ class IMVUGuiApp:
             while not self.log_queue.empty():
                 msg, level = self.log_queue.get_nowait()
                 timestamp = datetime.now().strftime("%H:%M:%S")
-                icon = {
-                    "INFO": "ℹ️",
-                    "SUCCESS": "✅",
-                    "WARNING": "⚠️",
-                    "ERROR": "❌",
-                    "DEBUG": "🔍"
-                }.get(level, "•")
-
-                line = f"[{timestamp}] {icon} [{level}] {msg}\\n"
-
-                if USE_CUSTOM_TK:
-                    self.txt_logs.insert("end", line)
-                    self.txt_logs.see("end")
+                lvl = level.upper()
+                if lvl in ("SUCCESS", "OK"):
+                    tag = "[OK]"
+                elif lvl in ("ERROR", "ERRO"):
+                    tag = "[ERRO]"
+                elif lvl in ("WARNING", "AVISO"):
+                    tag = "[AVISO]"
+                elif lvl == "DEBUG":
+                    tag = "[DEBUG]"
                 else:
-                    self.txt_logs.insert("end", line)
-                    self.txt_logs.see("end")
+                    tag = "[INFO]"
+
+                line = f"[{timestamp}] {tag} {msg}\\n"
+                self.txt_logs.insert("end", line)
+                self.txt_logs.see("end")
         except Exception:
             pass
 
@@ -357,20 +358,20 @@ class IMVUGuiApp:
         room = self.entry_room.get().strip()
         headless = self.var_headless.get() if USE_CUSTOM_TK else False
         save_config(user, pwd, room, headless)
-        self.log("Configurações salvas em config.yml com sucesso.", "SUCCESS")
+        self.log("Configuracoes salvas em config.yml com sucesso.", "OK")
 
     def _on_start_automation(self):
-        """Dispara a automação em uma thread separada para não congelar o Tkinter."""
+        """Dispara a automacao em uma thread separada para nao congelar a interface."""
         user = self.entry_user.get().strip()
         pwd = self.entry_pass.get().strip()
         room = self.entry_room.get().strip()
 
         if not user or not pwd:
-            self.log("Atenção: Usuário e Senha são obrigatórios para realizar o login no IMVU.", "WARNING")
+            self.log("Usuario e Senha sao obrigatorios para o login no IMVU.", "AVISO")
             return
 
         if not room:
-            self.log("Atenção: A URL da sala não foi preenchida.", "WARNING")
+            self.log("A URL da sala nao foi preenchida.", "AVISO")
 
         self._on_save_config()
 
@@ -378,7 +379,7 @@ class IMVUGuiApp:
         self.btn_stop.configure(state="normal")
         self.is_running = True
 
-        self.log("Iniciando processo de automação em segundo plano...", "INFO")
+        self.log("Iniciando processo de automacao em segundo plano...", "INFO")
 
         headless = self.var_headless.get() if USE_CUSTOM_TK else False
         timeout = int(self.config["automation"].get("timeout", 25))
@@ -397,20 +398,20 @@ class IMVUGuiApp:
         thread.start()
 
     def _run_automation_thread(self):
-        """Método executado na thread de trabalho."""
+        """Metodo executado na thread de trabalho."""
         try:
             success = self.automator.run_full_pipeline()
             if success:
-                self.log("Operação finalizada com sucesso! Sessão ativa no Chrome.", "SUCCESS")
+                self.log("Operacao finalizada com sucesso! Sessao ativa no Chrome.", "OK")
             else:
-                self.log("A automação encontrou erros durante a execução.", "ERROR")
+                self.log("A automacao encontrou erros durante a execucao.", "ERRO")
         except Exception as e:
-            self.log(f"Exceção fatal na automação: {str(e)}", "ERROR")
+            self.log(f"Excecao fatal na automacao: {str(e)}", "ERRO")
         finally:
             self.root.after(0, self._reset_ui_state)
 
     def _reset_ui_state(self):
-        """Restaura o estado dos botões após término ou erro."""
+        """Restaura o estado dos botoes apos termino ou erro."""
         self.btn_start.configure(state="normal")
         if self.automator and self.automator.driver:
             self.btn_stop.configure(state="normal")
@@ -421,14 +422,14 @@ class IMVUGuiApp:
     def _on_stop_browser(self):
         """Fecha a janela do Chrome imediatamente."""
         if self.automator:
-            self.log("Comando recebido: Encerrando navegador...", "WARNING")
+            self.log("Comando recebido: Encerrando navegador...", "AVISO")
             self.automator.close()
             self.btn_stop.configure(state="disabled")
             self.btn_start.configure(state="normal")
 
     def run(self):
-        """Inicia o loop principal da aplicação gráfica."""
-        self.log("Aplicativo iniciado. Pronto para automação.", "INFO")
+        """Inicia o loop principal da aplicacao grafica."""
+        self.log("Aplicativo iniciado. Pronto para automacao.", "INFO")
         self.root.mainloop()
 
 
@@ -441,27 +442,32 @@ if __name__ == "__main__":
     name: "imvu_automator.py",
     path: "imvu_automator.py",
     language: "python",
-    description: "Motor Selenium WebDriver resiliente com esperas explícitas, bypass anti-bot, login e clique JOIN",
+    description: "Motor Selenium WebDriver resiliente com esperas explicitas, bypass anti-bot, login e clique JOIN",
     content: `"""
 ==============================================================
-MOTOR DE AUTOMAÇÃO IMVU COM SELENIUM WEBDRIVER
+MOTOR DE AUTOMACAO IMVU COM SELENIUM WEBDRIVER
 ==============================================================
-Módulo responsável por:
-1. Inicializar o Google Chrome via webdriver-manager de forma resiliente.
-2. Navegar para a página de login do IMVU.
-3. Preencher credenciais e submeter o formulário de login.
-4. Tratar banners de cookies e termos da interface.
+Modulo responsavel por:
+1. Inicializar o Google Chrome (Selenium Manager / webdriver-manager).
+2. Navegar para a pagina de login do IMVU.
+3. Preencher credenciais e submeter o formulario de login.
+4. Tratar banners de cookies (OneTrust / GDPR) e termos.
 5. Redirecionar para a sala 3D do IMVU Next (chat/room-...).
-6. Clicar automaticamente no botão 'JOIN' / 'Entrar'.
-7. Manter a sessão aberta e interativa com a opção 'detach'.
+6. Clicar automaticamente no botao 'JOIN' / 'Entrar'.
+7. Manter a sessao aberta e interativa com a opcao 'detach=True'.
+8. Saida estrita em UTF-8 sem emojis para compatibilidade cp1252.
 ==============================================================
 """
 
-import time
 import os
 import sys
-import logging
+import time
 from typing import Callable, Optional
+
+# Forcar UTF-8 no stdout/stderr no Windows (evita UnicodeEncodeError em consoles cp1252/cp850)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Selenium imports
 from selenium import webdriver
@@ -478,7 +484,7 @@ from selenium.common.exceptions import (
     WebDriverException
 )
 
-# Gerenciador automático de ChromeDriver
+# Gerenciador opcional webdriver-manager
 try:
     from webdriver_manager.chrome import ChromeDriverManager
 except ImportError:
@@ -486,7 +492,7 @@ except ImportError:
 
 
 class IMVUAutomator:
-    """Controlador de automação do IMVU usando Selenium WebDriver."""
+    """Controlador de automacao do IMVU usando Selenium WebDriver."""
 
     LOGIN_URL = "https://secure.imvu.com/welcome/login/"
 
@@ -513,32 +519,40 @@ class IMVUAutomator:
         self._is_running = False
 
     def log(self, message: str, level: str = "INFO"):
-        """Envia mensagem para o callback de log (GUI ou CLI) e terminal."""
+        """Envia mensagem com tags ASCII estritas para evitar falhas de encoding."""
+        lvl = level.upper()
+        if lvl in ("SUCCESS", "OK"):
+            lvl = "OK"
+        elif lvl in ("ERROR", "ERRO"):
+            lvl = "ERRO"
+        elif lvl in ("WARNING", "AVISO"):
+            lvl = "AVISO"
+        elif lvl not in ("INFO", "DEBUG"):
+            lvl = "INFO"
+
         timestamp = time.strftime("%H:%M:%S")
-        formatted = f"[{timestamp}] [{level}] {message}"
-        print(formatted)
+        formatted = f"[{timestamp}] [{lvl}] {message}"
+        print(formatted, flush=True)
+
         if self.log_callback:
             try:
-                self.log_callback(message, level)
+                self.log_callback(message, lvl)
             except Exception as e:
-                print(f"Erro no log_callback: {e}")
+                print(f"[{timestamp}] [AVISO] Falha no log_callback: {e}", flush=True)
 
     def build_chrome_options(self) -> Options:
-        """Configura as opções do Chrome para estabilidade e evasão de bloqueios."""
+        """Configura opcoes do Chrome para estabilidade, detach e evasao anti-bot."""
         options = Options()
 
-        # Manter o navegador aberto mesmo após o script encerrar
         if self.keep_browser_open:
             options.add_experimental_option("detach", True)
 
-        # Configurações de exibição
         if self.headless:
             options.add_argument("--headless=new")
-            self.log("Modo Headless (sem janela visível) ativado.", "DEBUG")
+            self.log("Modo Headless (sem janela visivel) ativado.", "DEBUG")
         else:
             options.add_argument("--start-maximized")
 
-        # Argumentos de estabilidade
         options.add_argument("--disable-infobars")
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-gpu")
@@ -546,12 +560,10 @@ class IMVUAutomator:
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--ignore-certificate-errors")
 
-        # Evitar detecção automatizada básica do Chrome
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option("useAutomationExtension", False)
         options.add_argument("--disable-blink-features=AutomationControlled")
 
-        # User-Agent personalizado se especificado
         if self.user_agent:
             options.add_argument(f"user-agent={self.user_agent}")
         else:
@@ -561,25 +573,30 @@ class IMVUAutomator:
             )
             options.add_argument(f"user-agent={default_ua}")
 
-        # Habilitar áudio/WebGL para o motor 3D do IMVU Next
         options.add_argument("--autoplay-policy=no-user-gesture-required")
 
         return options
 
     def start_driver(self) -> webdriver.Chrome:
-        """Inicializa a instância do Chrome com webdriver-manager."""
+        """Inicializa a instancia do Google Chrome com fallback automatico."""
         self.log("Preparando WebDriver do Google Chrome...", "INFO")
         options = self.build_chrome_options()
+        driver = None
 
         try:
+            driver = webdriver.Chrome(options=options)
+            self.log("Chrome inicializado via Selenium Manager nativo.", "DEBUG")
+        except Exception as e1:
+            self.log(f"Selenium Manager nao inicializou direto ({e1}). Tentando webdriver-manager...", "DEBUG")
             if ChromeDriverManager:
-                service = Service(ChromeDriverManager().install())
-                driver = webdriver.Chrome(service=service, options=options)
-            else:
-                driver = webdriver.Chrome(options=options)
-        except Exception as e:
-            self.log(f"Falha ao iniciar via ChromeDriverManager: {e}", "WARNING")
-            self.log("Tentando inicialização direta com chromedriver padrão do sistema...", "INFO")
+                try:
+                    service = Service(ChromeDriverManager().install())
+                    driver = webdriver.Chrome(service=service, options=options)
+                    self.log("Chrome inicializado via ChromeDriverManager.", "DEBUG")
+                except Exception as e2:
+                    self.log(f"Falha ao iniciar via ChromeDriverManager: {e2}", "AVISO")
+
+        if not driver:
             driver = webdriver.Chrome(options=options)
 
         try:
@@ -598,11 +615,11 @@ class IMVUAutomator:
 
         self.driver = driver
         self._is_running = True
-        self.log("Google Chrome aberto com sucesso!", "SUCCESS")
+        self.log("Google Chrome aberto com sucesso!", "OK")
         return driver
 
     def dismiss_cookie_banner(self):
-        """Tenta fechar ou aceitar banners de cookies (OneTrust / GDPR)."""
+        """Disposicao automatica de banners de cookies (OneTrust / GDPR)."""
         if not self.driver:
             return
 
@@ -632,11 +649,11 @@ class IMVUAutomator:
                 continue
 
     def perform_login(self) -> bool:
-        """Navega para a página de login e efetua o login no IMVU."""
+        """Navega para a pagina de login e efetua o login no IMVU."""
         if not self.driver:
-            raise RuntimeError("Driver não inicializado.")
+            raise RuntimeError("Driver nao inicializado.")
 
-        self.log(f"Navegando para a página de login: {self.LOGIN_URL}", "INFO")
+        self.log(f"Navegando para a pagina de login: {self.LOGIN_URL}", "INFO")
         self.driver.get(self.LOGIN_URL)
 
         wait = WebDriverWait(self.driver, self.timeout)
@@ -675,7 +692,8 @@ class IMVUAutomator:
                 continue
 
         if not user_elem:
-            raise NoSuchElementException("Não foi possível localizar o campo de Usuário/Avatar do IMVU.")
+            self.log(f"Campo de usuario nao encontrado. URL atual: {self.driver.current_url}", "ERRO")
+            raise NoSuchElementException("Nao foi possivel localizar o campo de Usuario/Avatar do IMVU.")
 
         pass_elem = None
         for by, sel in pass_selectors:
@@ -687,9 +705,10 @@ class IMVUAutomator:
                 continue
 
         if not pass_elem:
-            raise NoSuchElementException("Não foi possível localizar o campo de Senha do IMVU.")
+            self.log(f"Campo de senha nao encontrado. URL atual: {self.driver.current_url}", "ERRO")
+            raise NoSuchElementException("Nao foi possivel localizar o campo de Senha do IMVU.")
 
-        self.log(f"Preenchendo usuário: '{self.username}'...", "INFO")
+        self.log(f"Preenchendo usuario: '{self.username}'...", "INFO")
         user_elem.clear()
         user_elem.send_keys(self.username)
         time.sleep(0.3)
@@ -712,7 +731,7 @@ class IMVUAutomator:
             try:
                 submit_elem = self.driver.find_element(by, sel)
                 if submit_elem.is_displayed():
-                    self.log("Clicando no botão de Login...", "INFO")
+                    self.log("Clicando no botao de Login...", "INFO")
                     try:
                         submit_elem.click()
                     except ElementClickInterceptedException:
@@ -723,10 +742,10 @@ class IMVUAutomator:
                 continue
 
         if not submitted:
-            self.log("Submetendo formulário via tecla ENTER no campo de senha...", "INFO")
+            self.log("Submetendo formulario via tecla ENTER no campo de senha...", "INFO")
             pass_elem.send_keys(Keys.ENTER)
 
-        self.log("Aguardando confirmação de login...", "INFO")
+        self.log("Aguardando confirmacao de login...", "INFO")
 
         try:
             WebDriverWait(self.driver, 15).until(
@@ -736,33 +755,36 @@ class IMVUAutomator:
                     or len(d.find_elements(By.CSS_SELECTOR, ".user-avatar, .profile-badge, [data-testid='user-avatar']")) > 0
                 )
             )
-            self.log(f"Login validado! URL atual: {self.driver.current_url}", "SUCCESS")
+            self.log(f"Login validado! URL atual: {self.driver.current_url}", "OK")
             return True
         except TimeoutException:
             error_elems = self.driver.find_elements(
                 By.XPATH,
                 "//*[contains(@class, 'error') or contains(@class, 'alert') or contains(text(), 'Incorrect') or contains(text(), 'Invalid')]"
             )
+            found_error = False
             for err in error_elems:
                 if err.is_displayed() and err.text:
-                    self.log(f"Alerta na página de login: {err.text.strip()}", "WARNING")
+                    self.log(f"Alerta na pagina de login: {err.text.strip()}", "ERRO")
+                    found_error = True
 
-            self.log("Aviso: URL ainda contém 'login'. Prosseguindo para a sala de chat especificada...", "WARNING")
+            if found_error:
+                raise RuntimeError("Falha de autenticacao no IMVU: Usuario ou senha incorretos.")
+
+            self.log(f"Aviso: URL apos espera de login: {self.driver.current_url}. Prosseguindo para a sala...", "AVISO")
             return True
 
     def join_room(self) -> bool:
-        """Navega para a sala especificada e clica no botão JOIN."""
+        """Navega para a sala especificada e clica no botao JOIN."""
         if not self.driver:
-            raise RuntimeError("Driver não inicializado.")
+            raise RuntimeError("Driver nao inicializado.")
 
         if not self.room_url:
-            self.log("Nenhuma URL de sala especificada. Mantendo navegador na página inicial.", "WARNING")
+            self.log("Nenhuma URL de sala especificada. Mantendo navegador aberto.", "AVISO")
             return True
 
         self.log(f"Redirecionando para a sala do IMVU: {self.room_url}", "INFO")
         self.driver.get(self.room_url)
-
-        wait = WebDriverWait(self.driver, self.timeout)
 
         time.sleep(3)
         self.dismiss_cookie_banner()
@@ -789,7 +811,8 @@ class IMVUAutomator:
                     elements = self.driver.find_elements(by, sel)
                     for elem in elements:
                         if elem.is_displayed() and elem.is_enabled():
-                            self.log(f"Botão 'JOIN' localizado: '{elem.text.strip() or 'Join'}'. Clicando...", "INFO")
+                            btn_label = elem.text.strip() or "Join"
+                            self.log(f"Botao 'JOIN' localizado: '{btn_label}'. Clicando...", "INFO")
                             try:
                                 self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
                                 time.sleep(0.3)
@@ -798,7 +821,7 @@ class IMVUAutomator:
                                 self.driver.execute_script("arguments[0].click();", elem)
 
                             join_clicked = True
-                            self.log("Botão JOIN clicado com sucesso!", "SUCCESS")
+                            self.log("Botao JOIN clicado com sucesso!", "OK")
                             break
                     if join_clicked:
                         break
@@ -809,10 +832,6 @@ class IMVUAutomator:
                 break
             time.sleep(1)
 
-        if not join_clicked:
-            current_url = self.driver.current_url
-            self.log(f"Botão JOIN não foi necessário ou sala já carregou diretamente ({current_url}).", "INFO")
-
         try:
             confirm_btns = self.driver.find_elements(
                 By.XPATH,
@@ -820,37 +839,55 @@ class IMVUAutomator:
             )
             for btn in confirm_btns:
                 if btn.is_displayed():
-                    self.log("Modal de confirmação detectado. Confirmando entrada...", "INFO")
+                    self.log("Modal de confirmacao detectado. Confirmando entrada...", "INFO")
                     self.driver.execute_script("arguments[0].click();", btn)
                     time.sleep(1)
                     break
         except Exception:
             pass
 
-        self.log("Automação concluída com êxito! A sala 3D do IMVU está aberta.", "SUCCESS")
-        self.log("O navegador Google Chrome permanecerá ativo para você interagir normalmente.", "INFO")
+        current_url = self.driver.current_url
+        page_title = self.driver.title or "[Sem Titulo]"
+
+        if not join_clicked:
+            in_room_elements = self.driver.find_elements(
+                By.CSS_SELECTOR,
+                "#imvu-canvas, .room-view, .chat-view, [data-testid='chat-input'], canvas"
+            )
+            if in_room_elements and any(e.is_displayed() for e in in_room_elements):
+                self.log(f"Avatar ja posicionado dentro da sala 3D ({current_url}).", "OK")
+            else:
+                snippet = (self.driver.page_source or "")[:400].replace("\n", " ").strip()
+                self.log(f"Nenhum botao JOIN localizado na sala. URL atual: '{current_url}', Titulo: '{page_title}'", "ERRO")
+                self.log(f"Trecho do DOM (page_source): {snippet}", "DEBUG")
+                raise RuntimeError(
+                    f"Falha ao entrar na sala: Botao JOIN nao encontrado na pagina '{current_url}'."
+                )
+
+        self.log("Automacao concluida com exito! A sala 3D do IMVU esta aberta.", "OK")
+        self.log("O Google Chrome permanecera ativo (detach=True) para interacao normal.", "INFO")
         return True
 
     def run_full_pipeline(self) -> bool:
-        """Executa o fluxo completo fim-a-fim."""
+        """Executa o fluxo completo fim-a-fim. Retorna True em sucesso e False em erro."""
         try:
             self.start_driver()
             self.perform_login()
             self.join_room()
             return True
         except Exception as e:
-            self.log(f"Erro durante a automação: {str(e)}", "ERROR")
+            self.log(f"Erro durante a automacao: {str(e)}", "ERRO")
             return False
 
     def close(self):
-        """Fecha o navegador e finaliza a sessão se requisitado pelo usuário."""
+        """Fecha o navegador sob demanda."""
         if self.driver:
             self.log("Fechando navegador Google Chrome...", "INFO")
             try:
                 self.driver.quit()
-                self.log("Navegador fechado.", "SUCCESS")
+                self.log("Navegador fechado.", "OK")
             except Exception as e:
-                self.log(f"Erro ao fechar navegador: {e}", "WARNING")
+                self.log(f"Erro ao fechar navegador: {e}", "AVISO")
             finally:
                 self.driver = None
                 self._is_running = False
@@ -860,13 +897,14 @@ class IMVUAutomator:
     name: "bot.py",
     path: "bot.py",
     language: "python",
-    description: "Script de Linha de Comando (CLI) para automação com suporte a flags --room, --headless e overrides",
+    description: "Script de Linha de Comando (CLI) para automacao compativel com cp1252 e UTF-8",
     content: `#!/usr/bin/env python3
 """
 ==============================================================
 IMVU CLI AUTOMATOR - SCRIPT DE LINHA DE COMANDO
 ==============================================================
-Permite executar a automação completa do IMVU diretamente pelo terminal.
+Permite executar a automacao completa do IMVU diretamente pelo terminal.
+Compativel com Windows cp1252 / UTF-8 sem emojis para evitar UnicodeEncodeError.
 
 Exemplos de Uso:
     python bot.py --room https://www.imvu.com/next/chat/room-12345-67890
@@ -878,39 +916,66 @@ Exemplos de Uso:
 
 import os
 import sys
+import re
 import argparse
 
-# Verificação amigável de dependências antes da execução
-try:
-    import yaml
-except ImportError:
-    print("\\n❌ [ERRO] O módulo 'pyyaml' não está instalado.")
-    print("👉 Por favor, execute no seu terminal: pip install -r requirements.txt\\n")
-    sys.exit(1)
-
-try:
-    from imvu_automator import IMVUAutomator
-except ImportError as e:
-    print(f"\\n❌ [ERRO] Dependência ausente: {e}")
-    print("👉 Por favor, execute no seu terminal: pip install -r requirements.txt\\n")
-    sys.exit(1)
+# Forcar UTF-8 no stdout/stderr no Windows (evita UnicodeEncodeError em consoles cp1252/cp850)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 def load_yaml_config(path: str) -> dict:
-    """Carrega dados de configuração YAML."""
+    """Carrega dados de configuracao com PyYAML ou fallback regex simples."""
     if not os.path.exists(path):
         return {}
+
     try:
+        import yaml
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
+    except ImportError:
+        pass
     except Exception as e:
-        print(f"[AVISO] Falha ao carregar {path}: {e}")
-        return {}
+        print(f"[AVISO] Falha ao carregar {path} via yaml: {e}")
+
+    config = {"imvu": {}, "automation": {}}
+    current_section = None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.endswith(":"):
+                    current_section = line[:-1].strip()
+                    continue
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if v.lower() == "true":
+                        val = True
+                    elif v.lower() == "false":
+                        val = False
+                    elif v.isdigit():
+                        val = int(v)
+                    else:
+                        val = v
+
+                    if current_section and current_section in config:
+                        config[current_section][k] = val
+                    else:
+                        config[k] = val
+    except Exception:
+        pass
+
+    return config
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="IMVU Browser Automation CLI - Login automático e entrada em salas 3D IMVU Next."
+        description="IMVU Browser Automation CLI - Login automatico e entrada em salas 3D IMVU Next."
     )
     parser.add_argument(
         "--room",
@@ -924,14 +989,14 @@ def main():
         "-c",
         type=str,
         default="config.yml",
-        help="Caminho para o arquivo de configuração YAML (padrão: config.yml)"
+        help="Caminho para o arquivo de configuracao YAML (padrao: config.yml)"
     )
     parser.add_argument(
         "--username",
         "-u",
         type=str,
         default=None,
-        help="Nome de usuário ou e-mail (sobrescreve o config.yml)"
+        help="Nome de usuario ou e-mail (sobrescreve o config.yml)"
     )
     parser.add_argument(
         "--password",
@@ -943,18 +1008,18 @@ def main():
     parser.add_argument(
         "--headless",
         action="store_true",
-        help="Executar o Chrome sem interface gráfica visível (headless)"
+        help="Executar o Chrome sem interface grafica visivel (headless)"
     )
     parser.add_argument(
         "--timeout",
         type=int,
         default=None,
-        help="Tempo limite (em segundos) para espera de elementos na página"
+        help="Tempo limite (em segundos) para espera de elementos na pagina"
     )
     parser.add_argument(
         "--no-detach",
         action="store_true",
-        help="Fechar o navegador automaticamente após o término do script"
+        help="Fechar o navegador automaticamente apos o termino do script"
     )
 
     args = parser.parse_args()
@@ -971,23 +1036,30 @@ def main():
     keep_browser_open = not args.no_detach
 
     print("=" * 65)
-    print("🤖 IMVU AUTOMATION BOT - MODO CLI")
+    print("[IMVU AUTOMATION BOT - MODO CLI]")
     print("=" * 65)
-    print(f"• Usuário:    {username or '[NÃO DEFINIDO]'}")
-    print(f"• Sala:       {room_url or '[NÃO DEFINIDO]'}")
-    print(f"• Headless:   {headless}")
-    print(f"• Timeout:    {timeout}s")
-    print(f"• Manter Aberto: {keep_browser_open}")
+    print(f"- Usuario:       {username or '[NAO DEFINIDO]'}")
+    print(f"- Sala:          {room_url or '[NAO DEFINIDO]'}")
+    print(f"- Headless:      {headless}")
+    print(f"- Timeout:       {timeout}s")
+    print(f"- Manter Aberto: {keep_browser_open}")
     print("=" * 65)
 
     if not username or not password:
-        print("\\n❌ ERRO: Usuário e Senha são obrigatórios!")
-        print("Defina-os no 'config.yml', variáveis de ambiente ou passe via --username e --password.")
+        print("\\n[ERRO] Usuario e Senha sao obrigatorios!")
+        print("Defina-os no 'config.yml', variaveis de ambiente ou passe via --username e --password.")
         sys.exit(1)
 
     if not room_url:
-        print("\\n❌ ERRO: Nenhuma URL de sala especificada!")
-        print("Passe o parâmetro: python bot.py --room https://www.imvu.com/next/chat/room-XXXXX")
+        print("\\n[ERRO] Nenhuma URL de sala especificada!")
+        print("Passe o parametro: python bot.py --room https://www.imvu.com/next/chat/room-XXXXX")
+        sys.exit(1)
+
+    try:
+        from imvu_automator import IMVUAutomator
+    except ImportError as e:
+        print(f"\\n[ERRO] Dependencia ausente ao importar imvu_automator: {e}")
+        print("Por favor, execute: pip install -r requirements.txt\\n")
         sys.exit(1)
 
     automator = IMVUAutomator(
@@ -1002,21 +1074,21 @@ def main():
     try:
         success = automator.run_full_pipeline()
         if success:
-            print("\\n🎉 Automação finalizada com sucesso!")
+            print("\\n[OK] Automacao finalizada com sucesso!")
             if keep_browser_open and not headless:
-                print("📌 O Google Chrome está ativo e conectado. Pressione Ctrl+C para finalizar este script.")
+                print("[INFO] O Google Chrome esta ativo e conectado. Pressione Ctrl+C para finalizar este script.")
                 try:
                     import time
                     while True:
                         time.sleep(1)
                 except KeyboardInterrupt:
-                    print("\\nSaindo do CLI.")
+                    print("\\n[INFO] Encerrando processo CLI.")
             sys.exit(0)
         else:
-            print("\\n⚠️ Falha durante a execução da automação.")
+            print("\\n[ERRO] Falha durante a execucao da automacao.")
             sys.exit(1)
     except Exception as e:
-        print(f"\\n❌ Exceção não tratada: {e}")
+        print(f"\\n[ERRO] Excecao nao tratada: {e}")
         sys.exit(1)
 
 
@@ -1028,29 +1100,20 @@ if __name__ == "__main__":
     name: "config.yml",
     path: "config.yml",
     language: "yaml",
-    description: "Arquivo de configuração de credenciais, timeouts e parâmetros do navegador",
+    description: "Arquivo de configuracao de credenciais, timeouts e parametros do navegador",
     content: `# ==============================================================
-# CONFIGURAÇÃO DE ACESSO AO IMVU
+# CONFIGURACAO DE ACESSO AO IMVU
 # ==============================================================
-# Preencha com o seu nome de usuário (Avatar Name ou E-mail) e senha.
-# Esses dados serão carregados automaticamente pelo app.py e bot.py.
-# ==============================================================
-
 imvu:
   username: "SEU_USUARIO_OU_EMAIL"
   password: "SUA_SENHA_AQUI"
   default_room_url: "https://www.imvu.com/next/chat/room-12345-67890"
 
 automation:
-  # Tempo limite em segundos para o WebDriverWait aguardar elementos da DOM
   timeout: 25
-  # Manter a janela do Google Chrome aberta mesmo após o término da automação
   keep_browser_open: true
-  # Executar em modo invisível (True) ou abrindo a janela visível do Chrome (False)
   headless: false
-  # User-Agent personalizado (opcional - deixe vazio para usar o padrão do Chrome)
   user_agent: ""
-  # Aguardar carregamento adicional de assets 3D após entrar na sala (em segundos)
   post_join_delay: 3
 `
   },
@@ -1058,7 +1121,7 @@ automation:
     name: "requirements.txt",
     path: "requirements.txt",
     language: "text",
-    description: "Lista de dependências necessárias para instalar via pip",
+    description: "Lista de dependencias necessarias para instalar via pip",
     content: `selenium>=4.20.0
 webdriver-manager>=4.0.1
 pyyaml>=6.0.1
@@ -1070,7 +1133,7 @@ packaging>=23.2
     name: "run.bat",
     path: "run.bat",
     language: "batch",
-    description: "Executável de inicialização rápida em 1 clique para Windows",
+    description: "Executavel de inicializacao rapida em 1 clique para Windows",
     content: `@echo off
 title IMVU Automation Suite - Launcher
 cls
@@ -1101,7 +1164,7 @@ pause
     name: "run.sh",
     path: "run.sh",
     language: "bash",
-    description: "Script shell de inicialização rápida para Linux e macOS",
+    description: "Script shell de inicializacao rapida para Linux e macOS",
     content: `#!/usr/bin/env bash
 set -e
 
@@ -1110,15 +1173,15 @@ echo "       IMVU BROWSER AUTOMATION SUITE"
 echo "========================================================"
 
 if ! command -v python3 &> /dev/null; then
-    echo "[ERRO] Python 3 não encontrado!"
+    echo "[ERRO] Python 3 nao encontrado!"
     exit 1
 fi
 
-echo "Instalando / verificando dependências em requirements.txt..."
+echo "Instalando / verificando dependencias em requirements.txt..."
 python3 -m pip install -r requirements.txt
 
 echo ""
-echo "Iniciando interface gráfica (app.py)..."
+echo "Iniciando interface grafica (app.py)..."
 python3 app.py
 `
   },
@@ -1126,31 +1189,29 @@ python3 app.py
     name: "README.md",
     path: "README.md",
     language: "markdown",
-    description: "Documentação completa com manual de instalação, uso e resolução de problemas",
-    content: `# 🚀 IMVU Browser Automation Suite (Python + Selenium)
+    description: "Documentacao completa com manual de instalacao, uso e resolucao de problemas",
+    content: `# IMVU Browser Automation Suite (Python + Selenium)
 
-Automação 100% focada na **operação fim-a-fim** do IMVU Next no Google Chrome:
-1. Abertura automática do navegador Google Chrome (sem necessidade de gerenciar ChromeDriver manualmente).
-2. Login automatizado no IMVU com leitura segura de credenciais via \`config.yml\` ou variáveis de ambiente.
+Automacao 100% focada na operacao fim-a-fim do IMVU Next no Google Chrome:
+1. Abertura automatica do navegador Google Chrome (Selenium Manager / webdriver-manager).
+2. Login automatizado no IMVU com leitura segura de credenciais via config.yml ou variaveis de ambiente.
 3. Tratamento de banners de cookies e termos da interface (GDPR / OneTrust).
-4. Redirecionamento instantâneo para a sala 3D especificada (\`https://www.imvu.com/next/chat/room-XXXXX-XXXX\`).
-5. Clique automático no botão **"JOIN" / "Entrar"** dentro da sala do IMVU Next.
-6. **Sessão mantida ativa e aberta (\`detach=True\`)** para você interagir e conversar livremente sem que o Chrome feche.
+4. Redirecionamento instantaneo para a sala 3D especificada.
+5. Clique automatico no botao JOIN / Entrar dentro da sala do IMVU Next.
+6. Sessao mantida ativa e aberta (detach=True) para interacao normal sem fechar o Chrome.
 
----
-
-## ⚡ Instalação Rápida
+## Instalacao Rapida
 
 \`\`\`bash
 pip install -r requirements.txt
 \`\`\`
 
-## 🖥️ Executar Interface Gráfica
+## Executar Interface Grafica
 \`\`\`bash
 python app.py
 \`\`\`
 
-## ⌨️ Executar Linha de Comando (CLI)
+## Executar Linha de Comando (CLI)
 \`\`\`bash
 python bot.py --room https://www.imvu.com/next/chat/room-12345-67890
 \`\`\`

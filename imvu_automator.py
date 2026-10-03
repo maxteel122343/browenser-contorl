@@ -1,23 +1,28 @@
 """
 ==============================================================
-MOTOR DE AUTOMAÇÃO IMVU COM SELENIUM WEBDRIVER
+MOTOR DE AUTOMACAO IMVU COM SELENIUM WEBDRIVER
 ==============================================================
-Módulo responsável por:
-1. Inicializar o Google Chrome via webdriver-manager de forma resiliente.
-2. Navegar para a página de login do IMVU.
-3. Preencher credenciais e submeter o formulário de login.
-4. Tratar banners de cookies e termos da interface.
+Modulo responsavel por:
+1. Inicializar o Google Chrome (Selenium Manager / webdriver-manager).
+2. Navegar para a pagina de login do IMVU.
+3. Preencher credenciais e submeter o formulario de login.
+4. Tratar banners de cookies (OneTrust / GDPR) e termos.
 5. Redirecionar para a sala 3D do IMVU Next (chat/room-...).
-6. Clicar automaticamente no botão 'JOIN' / 'Entrar'.
-7. Manter a sessão aberta e interativa com a opção 'detach'.
+6. Clicar automaticamente no botao 'JOIN' / 'Entrar'.
+7. Manter a sessao aberta e interativa com a opcao 'detach=True'.
+8. Saida estrita em UTF-8 sem emojis para compatibilidade cp1252.
 ==============================================================
 """
 
-import time
 import os
 import sys
-import logging
+import time
 from typing import Callable, Optional
+
+# Forcar UTF-8 no stdout/stderr no Windows (evita UnicodeEncodeError em consoles cp1252/cp850)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Selenium imports
 from selenium import webdriver
@@ -34,7 +39,7 @@ from selenium.common.exceptions import (
     WebDriverException
 )
 
-# Gerenciador automático de ChromeDriver
+# Gerenciador opcional webdriver-manager
 try:
     from webdriver_manager.chrome import ChromeDriverManager
 except ImportError:
@@ -42,7 +47,7 @@ except ImportError:
 
 
 class IMVUAutomator:
-    """Controlador de automação do IMVU usando Selenium WebDriver."""
+    """Controlador de automacao do IMVU usando Selenium WebDriver."""
 
     LOGIN_URL = "https://secure.imvu.com/welcome/login/"
 
@@ -69,28 +74,40 @@ class IMVUAutomator:
         self._is_running = False
 
     def log(self, message: str, level: str = "INFO"):
-        """Envia mensagem para o callback de log (GUI ou CLI) e terminal."""
+        """Envia mensagem com tags ASCII estritas para evitar falhas de encoding."""
+        lvl = level.upper()
+        if lvl in ("SUCCESS", "OK"):
+            lvl = "OK"
+        elif lvl in ("ERROR", "ERRO"):
+            lvl = "ERRO"
+        elif lvl in ("WARNING", "AVISO"):
+            lvl = "AVISO"
+        elif lvl not in ("INFO", "DEBUG"):
+            lvl = "INFO"
+
         timestamp = time.strftime("%H:%M:%S")
-        formatted = f"[{timestamp}] [{level}] {message}"
-        print(formatted)
+        # Sem emojis ou simbolos nao-ASCII
+        formatted = f"[{timestamp}] [{lvl}] {message}"
+        print(formatted, flush=True)
+
         if self.log_callback:
             try:
-                self.log_callback(message, level)
+                self.log_callback(message, lvl)
             except Exception as e:
-                print(f"Erro no log_callback: {e}")
+                print(f"[{timestamp}] [AVISO] Falha no log_callback: {e}", flush=True)
 
     def build_chrome_options(self) -> Options:
-        """Configura as opções do Chrome para estabilidade e evasão de bloqueios."""
+        """Configura opcoes do Chrome para estabilidade, detach e evasao anti-bot."""
         options = Options()
 
-        # Manter o navegador aberto mesmo após o script encerrar
+        # Manter o navegador aberto mesmo apos o encerramento do script Python
         if self.keep_browser_open:
             options.add_experimental_option("detach", True)
 
-        # Configurações de exibição
+        # Configuracoes de exibicao
         if self.headless:
             options.add_argument("--headless=new")
-            self.log("Modo Headless (sem janela visível) ativado.", "DEBUG")
+            self.log("Modo Headless (sem janela visivel) ativado.", "DEBUG")
         else:
             options.add_argument("--start-maximized")
 
@@ -102,7 +119,7 @@ class IMVUAutomator:
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--ignore-certificate-errors")
 
-        # Evitar detecção automatizada básica do Chrome
+        # Evitar deteccao automatizada basica do Chrome
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option("useAutomationExtension", False)
         options.add_argument("--disable-blink-features=AutomationControlled")
@@ -117,29 +134,37 @@ class IMVUAutomator:
             )
             options.add_argument(f"user-agent={default_ua}")
 
-        # Habilitar áudio/WebGL para o motor 3D do IMVU Next
+        # Habilitar audio/WebGL para o motor 3D do IMVU Next
         options.add_argument("--autoplay-policy=no-user-gesture-required")
 
         return options
 
     def start_driver(self) -> webdriver.Chrome:
-        """Inicializa a instância do Chrome com webdriver-manager."""
+        """Inicializa a instancia do Google Chrome com fallback automatico."""
         self.log("Preparando WebDriver do Google Chrome...", "INFO")
         options = self.build_chrome_options()
+        driver = None
 
+        # 1. Tentativa via Selenium Manager nativo (Selenium 4.10+)
         try:
+            driver = webdriver.Chrome(options=options)
+            self.log("Chrome inicializado via Selenium Manager nativo.", "DEBUG")
+        except Exception as e1:
+            self.log(f"Selenium Manager nao inicializou direto ({e1}). Tentando webdriver-manager...", "DEBUG")
+            # 2. Tentativa via ChromeDriverManager
             if ChromeDriverManager:
-                service = Service(ChromeDriverManager().install())
-                driver = webdriver.Chrome(service=service, options=options)
-            else:
-                # Fallback se webdriver-manager não estiver disponível
-                driver = webdriver.Chrome(options=options)
-        except Exception as e:
-            self.log(f"Falha ao iniciar via ChromeDriverManager: {e}", "WARNING")
-            self.log("Tentando inicialização direta com chromedriver padrão do sistema...", "INFO")
+                try:
+                    service = Service(ChromeDriverManager().install())
+                    driver = webdriver.Chrome(service=service, options=options)
+                    self.log("Chrome inicializado via ChromeDriverManager.", "DEBUG")
+                except Exception as e2:
+                    self.log(f"Falha ao iniciar via ChromeDriverManager: {e2}", "AVISO")
+
+        if not driver:
+            # Ultima tentativa forcada
             driver = webdriver.Chrome(options=options)
 
-        # Ocultar flag navigator.webdriver via script injetado
+        # Ocultar flag navigator.webdriver via CDP script injetado
         try:
             driver.execute_cdp_cmd(
                 "Page.addScriptToEvaluateOnNewDocument",
@@ -156,11 +181,11 @@ class IMVUAutomator:
 
         self.driver = driver
         self._is_running = True
-        self.log("Google Chrome aberto com sucesso!", "SUCCESS")
+        self.log("Google Chrome aberto com sucesso!", "OK")
         return driver
 
     def dismiss_cookie_banner(self):
-        """Tenta fechar ou aceitar banners de cookies (OneTrust / GDPR)."""
+        """Disposicao automatica de banners de cookies (OneTrust / GDPR)."""
         if not self.driver:
             return
 
@@ -190,22 +215,21 @@ class IMVUAutomator:
                 continue
 
     def perform_login(self) -> bool:
-        """Navega para a página de login e efetua o login no IMVU."""
+        """Navega para a pagina de login e efetua o login no IMVU."""
         if not self.driver:
-            raise RuntimeError("Driver não inicializado.")
+            raise RuntimeError("Driver nao inicializado.")
 
-        self.log(f"Navegando para a página de login: {self.LOGIN_URL}", "INFO")
+        self.log(f"Navegando para a pagina de login: {self.LOGIN_URL}", "INFO")
         self.driver.get(self.LOGIN_URL)
 
         wait = WebDriverWait(self.driver, self.timeout)
 
-        # Aguardar carregamento da página e dispensar cookies
+        # Aguardar carregamento da pagina e dispensar cookies
         time.sleep(2)
         self.dismiss_cookie_banner()
 
         self.log("Aguardando campos de credenciais...", "INFO")
 
-        # Seletores resilientes para o campo de Usuário/Email
         user_selectors = [
             (By.NAME, "avatarname"),
             (By.ID, "loginavatar"),
@@ -217,7 +241,6 @@ class IMVUAutomator:
             (By.XPATH, "//input[@placeholder='Username' or @placeholder='Avatar Name' or @placeholder='Email']")
         ]
 
-        # Seletores resilientes para o campo de Senha
         pass_selectors = [
             (By.NAME, "password"),
             (By.ID, "loginpassword"),
@@ -236,7 +259,8 @@ class IMVUAutomator:
                 continue
 
         if not user_elem:
-            raise NoSuchElementException("Não foi possível localizar o campo de Usuário/Avatar do IMVU.")
+            self.log(f"Campo de usuario nao encontrado. URL atual: {self.driver.current_url}", "ERRO")
+            raise NoSuchElementException("Nao foi possivel localizar o campo de Usuario/Avatar do IMVU.")
 
         pass_elem = None
         for by, sel in pass_selectors:
@@ -248,9 +272,10 @@ class IMVUAutomator:
                 continue
 
         if not pass_elem:
-            raise NoSuchElementException("Não foi possível localizar o campo de Senha do IMVU.")
+            self.log(f"Campo de senha nao encontrado. URL atual: {self.driver.current_url}", "ERRO")
+            raise NoSuchElementException("Nao foi possivel localizar o campo de Senha do IMVU.")
 
-        self.log(f"Preenchendo usuário: '{self.username}'...", "INFO")
+        self.log(f"Preenchendo usuario: '{self.username}'...", "INFO")
         user_elem.clear()
         user_elem.send_keys(self.username)
         time.sleep(0.3)
@@ -260,7 +285,6 @@ class IMVUAutomator:
         pass_elem.send_keys(self.password)
         time.sleep(0.3)
 
-        # Seletores resilientes para o botão de Login
         submit_selectors = [
             (By.ID, "loginsubmit"),
             (By.CSS_SELECTOR, "button[type='submit']"),
@@ -274,7 +298,7 @@ class IMVUAutomator:
             try:
                 submit_elem = self.driver.find_element(by, sel)
                 if submit_elem.is_displayed():
-                    self.log("Clicando no botão de Login...", "INFO")
+                    self.log("Clicando no botao de Login...", "INFO")
                     try:
                         submit_elem.click()
                     except ElementClickInterceptedException:
@@ -285,12 +309,12 @@ class IMVUAutomator:
                 continue
 
         if not submitted:
-            self.log("Submetendo formulário via tecla ENTER no campo de senha...", "INFO")
+            self.log("Submetendo formulario via tecla ENTER no campo de senha...", "INFO")
             pass_elem.send_keys(Keys.ENTER)
 
-        self.log("Aguardando confirmação de login...", "INFO")
+        self.log("Aguardando confirmacao de login...", "INFO")
 
-        # Aguardar mudança de URL ou elemento pós-login
+        # Aguardar mudanca de URL ou presenca de elemento pos-login
         try:
             WebDriverWait(self.driver, 15).until(
                 lambda d: (
@@ -299,42 +323,43 @@ class IMVUAutomator:
                     or len(d.find_elements(By.CSS_SELECTOR, ".user-avatar, .profile-badge, [data-testid='user-avatar']")) > 0
                 )
             )
-            self.log(f"Login validado! URL atual: {self.driver.current_url}", "SUCCESS")
+            self.log(f"Login validado! URL atual: {self.driver.current_url}", "OK")
             return True
         except TimeoutException:
-            # Verificar se ocorreu mensagem de erro visível
+            # Checar mensagens de erro na pagina
             error_elems = self.driver.find_elements(
                 By.XPATH,
                 "//*[contains(@class, 'error') or contains(@class, 'alert') or contains(text(), 'Incorrect') or contains(text(), 'Invalid')]"
             )
+            found_error = False
             for err in error_elems:
                 if err.is_displayed() and err.text:
-                    self.log(f"Alerta na página de login: {err.text.strip()}", "WARNING")
+                    self.log(f"Alerta na pagina de login: {err.text.strip()}", "ERRO")
+                    found_error = True
 
-            self.log("Aviso: URL ainda contém 'login'. Prosseguindo para a sala de chat especificada...", "WARNING")
+            if found_error:
+                raise RuntimeError("Falha de autenticacao no IMVU: Usuario ou senha incorretos.")
+
+            self.log(f"Aviso: URL apos espera de login: {self.driver.current_url}. Prosseguindo para a sala...", "AVISO")
             return True
 
     def join_room(self) -> bool:
-        """Navega para a sala especificada e clica no botão JOIN."""
+        """Navega para a sala especificada e clica no botao JOIN."""
         if not self.driver:
-            raise RuntimeError("Driver não inicializado.")
+            raise RuntimeError("Driver nao inicializado.")
 
         if not self.room_url:
-            self.log("Nenhuma URL de sala especificada. Mantendo navegador na página inicial.", "WARNING")
+            self.log("Nenhuma URL de sala especificada. Mantendo navegador aberto.", "AVISO")
             return True
 
         self.log(f"Redirecionando para a sala do IMVU: {self.room_url}", "INFO")
         self.driver.get(self.room_url)
 
-        wait = WebDriverWait(self.driver, self.timeout)
-
-        # Dispensar eventuais modais ou cookies no Next
         time.sleep(3)
         self.dismiss_cookie_banner()
 
         self.log("Aguardando carregamento da interface 3D / card da sala...", "INFO")
 
-        # Seletores de botões JOIN / ENTRAR no IMVU Next
         join_selectors = [
             (By.XPATH, "//button[contains(translate(., 'JOIN', 'join'), 'join')]"),
             (By.XPATH, "//button[contains(translate(., 'ENTRAR', 'entrar'), 'entrar')]"),
@@ -355,7 +380,8 @@ class IMVUAutomator:
                     elements = self.driver.find_elements(by, sel)
                     for elem in elements:
                         if elem.is_displayed() and elem.is_enabled():
-                            self.log(f"Botão 'JOIN' localizado: '{elem.text.strip() or 'Join'}'. Clicando...", "INFO")
+                            btn_label = elem.text.strip() or "Join"
+                            self.log(f"Botao 'JOIN' localizado: '{btn_label}'. Clicando...", "INFO")
                             try:
                                 self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
                                 time.sleep(0.3)
@@ -364,7 +390,7 @@ class IMVUAutomator:
                                 self.driver.execute_script("arguments[0].click();", elem)
 
                             join_clicked = True
-                            self.log("Botão JOIN clicado com sucesso!", "SUCCESS")
+                            self.log("Botao JOIN clicado com sucesso!", "OK")
                             break
                     if join_clicked:
                         break
@@ -375,12 +401,7 @@ class IMVUAutomator:
                 break
             time.sleep(1)
 
-        if not join_clicked:
-            # Caso o usuário já tenha sido colocado diretamente dentro da sala sem tela intermediária
-            current_url = self.driver.current_url
-            self.log(f"Botão JOIN não foi necessário ou sala já carregou diretamente ({current_url}).", "INFO")
-
-        # Verificar se apareceu modal de restrição de idade (18+ / Confirm)
+        # Checar modais de confirmacao (ex: 18+ / Confirm)
         try:
             confirm_btns = self.driver.find_elements(
                 By.XPATH,
@@ -388,37 +409,58 @@ class IMVUAutomator:
             )
             for btn in confirm_btns:
                 if btn.is_displayed():
-                    self.log("Modal de confirmação detectado. Confirmando entrada...", "INFO")
+                    self.log("Modal de confirmacao detectado. Confirmando entrada...", "INFO")
                     self.driver.execute_script("arguments[0].click();", btn)
                     time.sleep(1)
                     break
         except Exception:
             pass
 
-        self.log("Automação concluída com êxito! A sala 3D do IMVU está aberta.", "SUCCESS")
-        self.log("O navegador Google Chrome permanecerá ativo para você interagir normalmente.", "INFO")
+        # Validar se o usuario esta dentro da sala ou se o DOM mudou
+        current_url = self.driver.current_url
+        page_title = self.driver.title or "[Sem Titulo]"
+
+        if not join_clicked:
+            # Checar se ja esta dentro do canvas 3D ou seletor de chat
+            in_room_elements = self.driver.find_elements(
+                By.CSS_SELECTOR,
+                "#imvu-canvas, .room-view, .chat-view, [data-testid='chat-input'], canvas"
+            )
+            if in_room_elements and any(e.is_displayed() for e in in_room_elements):
+                self.log(f"Avatar ja posicionado dentro da sala 3D ({current_url}).", "OK")
+            else:
+                # DOM pode ter mudado: registrar URL atual, titulo e trecho do page_source
+                snippet = (self.driver.page_source or "")[:400].replace("\n", " ").strip()
+                self.log(f"Nenhum botao JOIN localizado na sala. URL atual: '{current_url}', Titulo: '{page_title}'", "ERRO")
+                self.log(f"Trecho do DOM (page_source): {snippet}", "DEBUG")
+                raise RuntimeError(
+                    f"Falha ao entrar na sala: Botao JOIN nao encontrado na pagina '{current_url}'."
+                )
+
+        self.log("Automacao concluida com exito! A sala 3D do IMVU esta aberta.", "OK")
+        self.log("O Google Chrome permanecera ativo (detach=True) para interacao normal.", "INFO")
         return True
 
     def run_full_pipeline(self) -> bool:
-        """Executa o fluxo completo fim-a-fim."""
+        """Executa o fluxo completo fim-a-fim. Retorna True em sucesso e False em erro."""
         try:
             self.start_driver()
             self.perform_login()
             self.join_room()
             return True
         except Exception as e:
-            self.log(f"Erro durante a automação: {str(e)}", "ERROR")
+            self.log(f"Erro durante a automacao: {str(e)}", "ERRO")
             return False
 
     def close(self):
-        """Fecha o navegador e finaliza a sessão se requisitado pelo usuário."""
+        """Fecha o navegador sob demanda."""
         if self.driver:
             self.log("Fechando navegador Google Chrome...", "INFO")
             try:
                 self.driver.quit()
-                self.log("Navegador fechado.", "SUCCESS")
+                self.log("Navegador fechado.", "OK")
             except Exception as e:
-                self.log(f"Erro ao fechar navegador: {e}", "WARNING")
+                self.log(f"Erro ao fechar navegador: {e}", "AVISO")
             finally:
                 self.driver = None
                 self._is_running = False
